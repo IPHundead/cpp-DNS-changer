@@ -1,6 +1,11 @@
-# cpp-DNS-changer
-C plus plus DNS changer for windows operating systems. needs admin privileges.
+# Cpp-DNS-changer
 
-to give the program admin privileges, you could either run this program from an administrator user,
-or you could run this program as administrator (by right clicking it).
-you can also right click the shortcut or program, go to properties >> compatibility, and then check the "run as administrator" checkbox.
+* About Cpp-DNS-changer
+
+    ***Cpp-DNS-changer is a Windows console application to help you to change your DNS in a tick without any troubles, and also we have many lists of DNS in the application that you can select to use them.***
+
+## Note: This program needs administrator privileges to change your DNS
+
+### How to give a .exe file administrator privileges?
+
+    right-click on dns_changer.exe --> 'Properties' --> 'Compatibility' tab --> 'Run this program as an administrator'
