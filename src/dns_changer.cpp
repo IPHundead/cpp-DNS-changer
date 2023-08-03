@@ -25,7 +25,7 @@ void set_dns(dns_server server)
     clear_dns();
 
     const std::string add_dns_cmd ("netsh interface ipv4 add dnsservers \"Wi-Fi\"");
-    for (int i{}; i<2; i++)
+    for (int i{0}; i<2; i++)
     {
         std::string dns_setter_cmd (add_dns_cmd + " " + server.ip[i] + " index=" + std::to_string(i+1));
         system(dns_setter_cmd.c_str());
