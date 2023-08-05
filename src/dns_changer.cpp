@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <array>
+#include <fstream>
+#include <algorithm>
 
 class dns_server
 {
@@ -75,20 +77,24 @@ public:
     {
         std::array<char, 128> buffer;
         std::string result;
-        FILE* pipe = _popen("powershell -command \"(Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.DNSServerSearchOrder -ne $null }).DNSServerSearchOrder -join ', '\"", "r");
+
+        FILE* pipe = popen("powershell -command \"(Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.DNSServerSearchOrder -ne $null }).DNSServerSearchOrder -join ', '\"", "r");
         if (!pipe)
         {
-            std::cerr<<"popen failed."<<std::endl;
+            std::cerr << "popen failed." << std::endl;
             return "";
         }
 
         while (!feof(pipe))
+        {
             if (fgets(buffer.data(), 128, pipe) != nullptr)
                 result += buffer.data();
+        }
 
-        _pclose(pipe);
-        if (!result.empty() && result.back() == '\n')
-            result.pop_back();
+        pclose(pipe);
+
+        // Remove any trailing newline characters
+        result.erase(std::remove_if(result.begin(), result.end(), [](char c) { return c == '\n' || c == '\r'; }), result.end());
 
         return result;
     }
@@ -117,6 +123,33 @@ public:
     void clear_terminal() override
     {
         system("clear");
+    }
+
+    void restart_network() override
+    {
+        if (system("sudo systemctl restart NetworkManager") == 0)
+            std::cout<<"Internet reconnection successful."<<std::endl;
+        else
+            std::cerr<<"Failed to reconnect the internet."<<std::endl;
+    }
+
+    std::string get_dns() override
+    {
+        std::string dns_servers;
+        FILE* pipe = popen("resolvectl status | awk '/DNS Servers:/ { for (i = 3; i <= NF; ++i) { dns_servers = dns_servers $i \", \"; } } END { sub(/, $/, \"\", dns_servers); print dns_servers }'", "r");
+        if (pipe != nullptr)
+        {
+            char buffer[128];
+            while (fgets(buffer, 128, pipe) != nullptr)
+                dns_servers += buffer;
+            pclose(pipe);
+        }
+
+        // Remove the trailing newline character, if present
+        if (!dns_servers.empty() && dns_servers.back() == '\n')
+            dns_servers.pop_back();
+
+        return dns_servers;
     }
 };
 
@@ -186,7 +219,7 @@ int main()
         else if (cmd == "restart" || cmd == "r")
             os.restart_network();
         else if (cmd == "dns" || cmd == "d")
-            std::cout<<os.get_dns()<<std::endl;
+            std::cout<<"\b\b\b\b"<<os.get_dns()<<std::endl;
         else if (is_number(cmd)) {
             if (cmd == "0")
                 os.clear_dns();
