@@ -28,19 +28,26 @@ class Windows : public OS
 public:
     void clear_dns()
     {
-        system("netsh interface ipv4 delete dnsservers \"Wi-Fi\" all");
+        if (system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp") == 0)
+            std::cout<<"\r\033[1ADNS cleared successfully."<<std::endl;
+        else
+            std::cerr<<"\r\033[1AAn error occurred in clearing DNS."<<std::endl;
     }
 
     void set_dns(dns_server server)
     {
         clear_dns();
-
         const std::string add_dns_cmd("netsh interface ipv4 add dnsservers \"Wi-Fi\"");
         for (char i = 0; i < 2; i++)
         {
             std::string dns_setter_cmd(add_dns_cmd + " " + server.ip[i] + " index=" + std::to_string(i + 1));
-            system(dns_setter_cmd.c_str());
+            if (system(dns_setter_cmd.c_str()) == 1)
+            {
+                std::cerr<<"\r\033[1AAn error occurred in setting DNS."<<std::endl;
+                return;
+            }
         }
+        std::cout<<"\r\033[2ADNS has been set successfully!"<<std::endl;
     }
 
     void clear_terminal()
@@ -57,7 +64,7 @@ public:
         if (system("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\" \"$(ip -o -4 route show to default | awk '{print $3}' | tail -n 1)\"") == 0)
             std::cout<<"DNS cleared successfully."<<std::endl;
         else
-            std::cerr<<"Something went wrong."<<std::endl;
+            std::cerr<<"An error occurred in clearing DNS."<<std::endl;
     }
 
     void set_dns(dns_server server)
@@ -66,7 +73,7 @@ public:
         if (system(dns_setter_cmd.c_str()) == 0)
             std::cout<<"DNS has been set successfully!"<<std::endl;
         else
-            std::cerr<<"Something went wrong."<<std::endl;
+            std::cerr<<"An error occurred in setting DNS."<<std::endl;
     }
 
     void clear_terminal()
