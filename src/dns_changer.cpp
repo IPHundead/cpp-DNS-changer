@@ -69,6 +69,28 @@ public:
         else
             std::cerr<<"\r\033[1AAn error occurred in turning on the internet."<<std::endl;
     }
+
+    std::string get_dns()
+    {
+        std::array<char, 128> buffer;
+        std::string result;
+        FILE* pipe = _popen("powershell -command \"(Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.DNSServerSearchOrder -ne $null }).DNSServerSearchOrder -join ', '\"", "r");
+        if (!pipe)
+        {
+            std::cerr<<"popen failed."<<std::endl;
+            return "";
+        }
+
+        while (!feof(pipe))
+            if (fgets(buffer.data(), 128, pipe) != nullptr)
+                result += buffer.data();
+
+        _pclose(pipe);
+        if (!result.empty() && result.back() == '\n')
+            result.pop_back();
+
+        return result;
+    }
 };
 
 class Linux : public OS
@@ -110,6 +132,7 @@ void show_help()
     std::cout<<"\tEnter the DNS server number in the DNS server list to change the OS DNS server."<<std::endl;
     std::cout<<"\tEnter '0' to clear the OS DNS server."<<std::endl;
     std::cout<<"\tEnter 'restart' or 'r' to restart the internet connection."<<std::endl;
+    std::cout<<"\tEnter 'dns' or 'd' to get a list of the current DNS servers of OS."<<std::endl;
     std::cout<<"\tEnter 'clear' or 'c' to clear the terminal screen."<<std::endl;
     std::cout<<"\tEnter 'exit' or 'e' to exit the program."<<std::endl;
 }
@@ -161,6 +184,8 @@ int main()
             show_server_list(dns_servers);
         else if (cmd == "restart" || cmd == "r")
             os.restart_network();
+        else if (cmd == "dns" || cmd == "d")
+            std::cout<<os.get_dns()<<std::endl;
         else if (is_number(cmd)) {
             if (cmd == "0")
                 os.clear_dns();
