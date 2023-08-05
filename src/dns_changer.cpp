@@ -23,12 +23,13 @@ public:
     virtual void clear_dns() = 0;
     virtual void clear_terminal() = 0;
     virtual void restart_network() = 0;
+    virtual std::string get_dns() = 0;
 };
 
 class Windows : public OS
 {
 public:
-    void clear_dns()
+    void clear_dns() override
     {
         if (system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp") == 0)
             std::cout<<"\r\033[1ADNS cleared successfully."<<std::endl;
@@ -36,7 +37,7 @@ public:
             std::cerr<<"\r\033[1AAn error occurred in clearing DNS."<<std::endl;
     }
 
-    void set_dns(dns_server server)
+    void set_dns(dns_server server) override
     {
         clear_dns();
         const std::string add_dns_cmd("netsh interface ipv4 add dnsservers \"Wi-Fi\"");
@@ -52,12 +53,12 @@ public:
         std::cout<<"\r\033[2ADNS has been set successfully!"<<std::endl;
     }
 
-    void clear_terminal()
+    void clear_terminal() override
     {
         system("cls");
     }
 
-    void restart_network()
+    void restart_network() override
     {
         if (system("netsh interface set interface \"Wi-Fi\" admin=disable") == 0)
             std::cout<<"\r\033[1AThe Internet was turned off successfully."<<std::endl;
@@ -70,7 +71,7 @@ public:
             std::cerr<<"\r\033[1AAn error occurred in turning on the internet."<<std::endl;
     }
 
-    std::string get_dns()
+    std::string get_dns() override
     {
         std::array<char, 128> buffer;
         std::string result;
@@ -96,7 +97,7 @@ public:
 class Linux : public OS
 {
 public:
-    void clear_dns()
+    void clear_dns() override
     {
         if (system("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\" \"$(ip -o -4 route show to default | awk '{print $3}' | tail -n 1)\"") == 0)
             std::cout<<"DNS cleared successfully."<<std::endl;
@@ -104,7 +105,7 @@ public:
             std::cerr<<"An error occurred in clearing DNS."<<std::endl;
     }
 
-    void set_dns(dns_server server)
+    void set_dns(dns_server server) override
     {
         const std::string dns_setter_cmd("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" " + server.ip[0] + " " + server.ip[1]);
         if (system(dns_setter_cmd.c_str()) == 0)
@@ -113,7 +114,7 @@ public:
             std::cerr<<"An error occurred in setting DNS."<<std::endl;
     }
 
-    void clear_terminal()
+    void clear_terminal() override
     {
         system("clear");
     }
