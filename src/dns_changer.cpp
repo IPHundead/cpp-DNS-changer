@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <array>
 
 class dns_server
 {
@@ -21,6 +22,7 @@ public:
     virtual void set_dns(dns_server server) = 0;
     virtual void clear_dns() = 0;
     virtual void clear_terminal() = 0;
+    virtual void restart_network() = 0;
 };
 
 class Windows : public OS
@@ -53,6 +55,19 @@ public:
     void clear_terminal()
     {
         system("cls");
+    }
+
+    void restart_network()
+    {
+        if (system("netsh interface set interface \"Wi-Fi\" admin=disable") == 0)
+            std::cout<<"\r\033[1AThe Internet was turned off successfully."<<std::endl;
+        else
+            std::cerr<<"\r\033[1AAn error occurred in turning off the internet."<<std::endl;
+
+        if (system("netsh interface set interface \"Wi-Fi\" admin=enable") == 0)
+            std::cout<<"\r\033[1AThe Internet was turned on successfully."<<std::endl;
+        else
+            std::cerr<<"\r\033[1AAn error occurred in turning on the internet."<<std::endl;
     }
 };
 
@@ -94,6 +109,7 @@ void show_help()
     std::cout<<"\tEnter 'list' or 'l' to show the DNS servers list."<<std::endl;
     std::cout<<"\tEnter the DNS server number in the DNS server list to change the OS DNS server."<<std::endl;
     std::cout<<"\tEnter '0' to clear the OS DNS server."<<std::endl;
+    std::cout<<"\tEnter 'restart' or 'r' to restart the internet connection."<<std::endl;
     std::cout<<"\tEnter 'clear' or 'c' to clear the terminal screen."<<std::endl;
     std::cout<<"\tEnter 'exit' or 'e' to exit the program."<<std::endl;
 }
@@ -143,12 +159,15 @@ int main()
             os.clear_terminal();
         else if (cmd == "list" || cmd == "l")
             show_server_list(dns_servers);
+        else if (cmd == "restart" || cmd == "r")
+            os.restart_network();
         else if (is_number(cmd)) {
             if (cmd == "0")
                 os.clear_dns();
             else
                 os.set_dns(dns_servers[std::stoi(cmd) - 1]);
-        }
+        } else
+            std::cerr<<"Command not found!"<<std::endl;
     }
 
     return 0;
