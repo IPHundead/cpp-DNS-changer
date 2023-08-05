@@ -20,6 +20,7 @@ class OS
 public:
     virtual void set_dns(dns_server server) = 0;
     virtual void clear_dns() = 0;
+    virtual void clear_terminal() = 0;
 };
 
 class Windows : public OS
@@ -41,6 +42,11 @@ public:
             system(dns_setter_cmd.c_str());
         }
     }
+
+    void clear_terminal()
+    {
+        system("cls");
+    }
 };
 
 class Linux : public OS
@@ -56,7 +62,34 @@ public:
         const std::string dns_setter_cmd("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" " + server.ip[0] + " " + server.ip[1]);
         system(dns_setter_cmd.c_str());
     }
+
+    void clear_terminal()
+    {
+        system("clear");
+    }
 };
+
+bool is_number(const std::string& str)
+{
+    std::string::const_iterator it = str.begin();
+    while (it != str.end() && std::isdigit(*it)) ++it;
+    return !str.empty() && it == str.end();
+}
+
+void show_help()
+{
+    std::cout<<"\tEnter 'list' or 'l' to show the DNS servers list."<<std::endl;
+    std::cout<<"\tEnter the DNS server number in the DNS server list to change the OS DNS server."<<std::endl;
+    std::cout<<"\tEnter '0' to clear the OS DNS server."<<std::endl;
+    std::cout<<"\tEnter 'clear' or 'c' to clear the terminal screen."<<std::endl;
+    std::cout<<"\tEnter 'exit' or 'e' to exit the program."<<std::endl;
+}
+
+void show_server_list(std::vector<dns_server> dns_servers)
+{
+    for (auto i{0}; i<dns_servers.size(); i++)
+        std::cout<<"\tName: "<<dns_servers[i].name<<", Number: "<<i+1<<", DNS: ("<<dns_servers[i].ip[0]<<", "<<dns_servers[i].ip[1]<<")"<<std::endl;
+}
 
 int main()
 {
@@ -81,18 +114,28 @@ int main()
     dns_servers[1].create("electro", "78.157.42.100", "78.157.42.101");
     dns_servers[2].create("radar game", "10.202.10.10", "10.202.10.11");
 
+    std::cout<<"DNS Changer"<<std::endl;
+    std::cout<<"Enter 'help' or 'h' to get more information."<<std::endl;
     while (true)
     {
-        std::cout << "Enter 0 to clear DNS server, or choose your DNS server (1-3), or -1 to exit: ";
-        int dns_server_number;
-        std::cin >> dns_server_number;
+        std::cout<<"cmd: ";
+        std::string cmd;
+        std::cin>>cmd;
 
-        if (dns_server_number == -1)
+        if (cmd == "exit" || cmd == "e")
             break;
-        else if (dns_server_number != 0 && dns_server_number >= 1 && dns_server_number <= 3)
-            os.set_dns(dns_servers[dns_server_number - 1]);
-        else
-            os.clear_dns();
+        else if (cmd == "help" || cmd == "h")
+            show_help();
+        else if (cmd == "clear" || cmd == "c")
+            os.clear_terminal();
+        else if (cmd == "list" || cmd == "l")
+            show_server_list(dns_servers);
+        else if (is_number(cmd)) {
+            if (cmd == "0")
+                os.clear_dns();
+            else
+                os.set_dns(dns_servers[std::stoi(cmd) - 1]);
+        }
     }
 
     return 0;
