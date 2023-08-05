@@ -54,13 +54,19 @@ class Linux : public OS
 public:
     void clear_dns()
     {
-        system("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\" \"$(ip -o -4 route show to default | awk '{print $3}' | tail -n 1)\"");
+        if (system("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\" \"$(ip -o -4 route show to default | awk '{print $3}' | tail -n 1)\"") == 0)
+            std::cout<<"DNS cleared successfully."<<std::endl;
+        else
+            std::cerr<<"Something went wrong."<<std::endl;
     }
 
     void set_dns(dns_server server)
     {
         const std::string dns_setter_cmd("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" " + server.ip[0] + " " + server.ip[1]);
-        system(dns_setter_cmd.c_str());
+        if (system(dns_setter_cmd.c_str()) == 0)
+            std::cout<<"DNS has been set successfully!"<<std::endl;
+        else
+            std::cerr<<"Something went wrong."<<std::endl;
     }
 
     void clear_terminal()
