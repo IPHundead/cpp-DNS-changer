@@ -3,73 +3,59 @@
 #include <array>
 #include <algorithm>
 
-class dns_server
-{
+class DNSServer {
 public:
 	std::string name;
-	std::string ip[2];
+	std::array<std::string, 2> ip;
 
-    void create(const std::string& name, const std::string& ip1, const std::string& ip2)
-    {
-        ip[0] = ip1;
-        ip[1] = ip2;
-        this->name = name;
-    }
+    DNSServer(const std::string& name, const std::string& ip1, const std::string& ip2)
+        : name(name), ip{ ip1, ip2 } {}
 };
 
-class OS
-{
+class OS {
 public:
-    virtual void set_dns(dns_server server) = 0;
-    virtual void clear_dns() = 0;
-    virtual void clear_terminal() = 0;
-    virtual void restart_network() = 0;
-    virtual std::string get_dns() = 0;
+    virtual ~OS() = default;
+    virtual void setDNS(const DNSServer& server) = 0;
+    virtual void clearDNS() = 0;
+    virtual void clearTerminal() = 0;
+    virtual void restartNetwork() = 0;
+    virtual std::string getDNS() = 0;
 };
 
-class Windows : public OS
-{
+class Windows : public OS {
 public:
-    void clear_dns() override
-    {
+    void clearDNS() override {
         system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp");
     }
 
-    void set_dns(dns_server server) override
-    {
-        clear_dns();
-        const std::string add_dns_cmd("netsh interface ipv4 add dnsservers \"Wi-Fi\"");
-        for (char i = 0; i < 2; i++)
-        {
-            std::string dns_setter_cmd(add_dns_cmd + " " + server.ip[i] + " index=" + std::to_string(i + 1));
-            system(dns_setter_cmd.c_str());
+    void setDNS(const DNSServer& server) override {
+        clearDNS();
+        std::string DNSSetterCommand("netsh interface ipv4 add dnsservers \"Wi-Fi\" ");
+        for (char i{0}; i<2; i++) {
+            std::string DNSSetterCommand(DNSSetterCommand + " " + server.ip[i] + " index=" + std::to_string(i + 1));
+            system(DNSSetterCommand.c_str());
         }
     }
 
-    void clear_terminal() override
-    {
+    void clearTerminal() override {
         system("cls");
     }
 
-    void restart_network() override
-    {
+    void restartNetwork() override {
         system("netsh interface set interface \"Wi-Fi\" admin=disable");
         system("netsh interface set interface \"Wi-Fi\" admin=enable");
     }
 
-    std::string get_dns() override
-    {
+    std::string getDNS() override {
         FILE* pipe = popen("powershell -command \"(Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.DNSServerSearchOrder -ne $null }).DNSServerSearchOrder -join ', '\"", "r");
-        if (!pipe)
-        {
+        if (!pipe) {
             std::cerr<<"popen failed."<<std::endl;
             return "";
         }
 
         std::array<char, 128> buffer;
         std::string result;
-        while (!feof(pipe))
-        {
+        while (!feof(pipe)) {
             if (fgets(buffer.data(), 128, pipe) != nullptr)
                 result += buffer.data();
         }
@@ -80,43 +66,35 @@ public:
     }
 };
 
-class Linux : public OS
-{
+class Linux : public OS {
 public:
-    void clear_dns() override
-    {
+    void clearDNS() override {
         system("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\" \"$(ip -o -4 route show to default | awk '{print $3}' | tail -n 1)\"");
     }
 
-    void set_dns(dns_server server) override
-    {
-        const std::string dns_setter_cmd("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" " + server.ip[0] + " " + server.ip[1]);
-        system(dns_setter_cmd.c_str());
+    void setDNS(const DNSServer& server) override {
+        const std::string dns_setter_command("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" " + server.ip[0] + " " + server.ip[1]);
+        system(dns_setter_command.c_str());
     }
 
-    void clear_terminal() override
-    {
+    void clearTerminal() override {
         system("clear");
     }
 
-    void restart_network() override
-    {
+    void restartNetwork() override {
         system("systemctl restart NetworkManager");
     }
 
-    std::string get_dns() override
-    {
+    std::string getDNS() override {
         std::string dns_servers;
         FILE* pipe = popen("resolvectl status | awk '/DNS Servers:/ { for (i = 3; i <= NF; ++i) { dns_servers = dns_servers $i \", \"; } } END { sub(/, $/, \"\", dns_servers); print dns_servers }'", "r");
-        if (pipe != nullptr)
-        {
+        if (pipe != nullptr) {
             char buffer[128];
             while (fgets(buffer, 128, pipe) != nullptr)
                 dns_servers += buffer;
             pclose(pipe);
         }
 
-        // Remove the trailing newline character, if present
         if (!dns_servers.empty() && dns_servers.back() == '\n')
             dns_servers.pop_back();
 
@@ -124,15 +102,11 @@ public:
     }
 };
 
-bool is_number(const std::string& str)
-{
-    std::string::const_iterator it = str.begin();
-    while (it != str.end() && std::isdigit(*it)) ++it;
-    return !str.empty() && it == str.end();
+bool isNumber(const std::string& str) {
+    return !str.empty() && std::all_of(str.begin(), str.end(), ::isdigit);
 }
 
-void show_help()
-{
+void showHelp() {
     std::cout<<"\tEnter 'list' or 'l' to show the DNS servers list."<<std::endl;
     std::cout<<"\tEnter the DNS server number in the DNS server list to change the OS DNS server."<<std::endl;
     std::cout<<"\tEnter '0' to clear the OS DNS server."<<std::endl;
@@ -142,60 +116,62 @@ void show_help()
     std::cout<<"\tEnter 'exit' or 'e' to exit the program."<<std::endl;
 }
 
-void show_server_list(std::vector<dns_server> dns_servers)
-{
-    for (auto i{0}; i<dns_servers.size(); i++)
-        std::cout<<"\tName: "<<dns_servers[i].name<<", Number: "<<i+1<<", DNS: ("<<dns_servers[i].ip[0]<<", "<<dns_servers[i].ip[1]<<")"<<std::endl;
+void showDNSServersList(std::vector<DNSServer> DNSServers) {
+    for (size_t i=0; i<DNSServers.size(); i++)
+        std::cout<<"\tName: "<<DNSServers[i].name<<", Number: "<<i+1<<", DNS: ("<<DNSServers[i].ip[0]<<", "<<DNSServers[i].ip[1]<<")"<<std::endl;
 }
 
 int main()
 {
-    #ifdef _WIN32
-        Windows os;
-    #elif _WIN64
-        Windows os;
-    #elif __linux__
-        Linux os;
-    #elif __APPLE__ || __MACH__
-        return 0;
-    #elif __FreeBSD__
-        return 0;
-    #elif __unix || __unix__
-        return 0;
-    #else
-        return 0;
-    #endif
+#ifdef _WIN32
+    Windows os;
+#elif _WIN64
+    Windows os;
+#elif __linux__
+    Linux os;
+#else
+    return 1;
+#endif
 
-    std::vector<dns_server> dns_servers(3);
-    dns_servers[0].create("shecan", "178.22.122.100", "185.51.200.2");
-    dns_servers[1].create("electro", "78.157.42.100", "78.157.42.101");
-    dns_servers[2].create("radar game", "10.202.10.10", "10.202.10.11");
+    std::vector<DNSServer> DNSServers {
+        {"shecan", "178.22.122.100", "185.51.200.2"},
+        {"electro", "78.157.42.100", "78.157.42.101"},
+        {"radar game", "10.202.10.10", "10.202.10.11"}
+    };
 
     std::cout<<"DNS Changer"<<std::endl;
     std::cout<<"Enter 'help' or 'h' to get more information."<<std::endl;
-    while (true)
-    {
-        std::cout<<"cmd: ";
-        std::string cmd;
-        std::cin>>cmd;
+    while (true) {
+        std::string command;
+        std::cout<<"~> ";
+        std::getline(std::cin, command);
 
-        if (cmd == "exit" || cmd == "e")
+        if (command == "exit" || command == "e")
             break;
-        else if (cmd == "help" || cmd == "h")
-            show_help();
-        else if (cmd == "clear" || cmd == "c")
-            os.clear_terminal();
-        else if (cmd == "list" || cmd == "l")
-            show_server_list(dns_servers);
-        else if (cmd == "restart" || cmd == "r")
-            os.restart_network();
-        else if (cmd == "dns" || cmd == "d")
-            std::cout<<"\b\b\b\b"<<os.get_dns()<<std::endl;
-        else if (is_number(cmd)) {
-            if (cmd == "0")
-                os.clear_dns();
+
+        else if (command == "help" || command == "h")
+            showHelp();
+
+        else if (command == "clear" || command == "c")
+            os.clearTerminal();
+
+        else if (command == "list" || command == "l")
+            showDNSServersList(DNSServers);
+
+        else if (command == "restart" || command == "r")
+            os.restartNetwork();
+
+        else if (command == "dns" || command == "d")
+            std::cout<<os.getDNS()<<std::endl;
+
+        else if (isNumber(command)) {
+            long DNSServerNumber {std::stol(command) - 1};
+            if (DNSServerNumber == -1)
+                os.clearDNS();
+            else if (DNSServerNumber < 0 || DNSServerNumber >= DNSServers.size())
+                std::cerr<<"Invalid server number."<<std::endl;
             else
-                os.set_dns(dns_servers[std::stoi(cmd) - 1]);
+                os.setDNS(DNSServers[DNSServerNumber]);
         } else
             std::cerr<<"Command not found!"<<std::endl;
     }
