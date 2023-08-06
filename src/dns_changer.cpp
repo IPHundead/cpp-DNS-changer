@@ -6,10 +6,10 @@
 class DNSServer {
 public:
 	std::string name;
-	std::array<std::string, 2> ip;
+	std::array<std::string, 2> IPs;
 
-    DNSServer(const std::string& name, const std::string& ip1, const std::string& ip2)
-        : name(name), ip{ ip1, ip2 } {}
+    DNSServer(const std::string& name, const std::string& primaryIP, const std::string& secondaryIP)
+        : name(name), IPs {primaryIP, secondaryIP} {}
 };
 
 class OS {
@@ -19,7 +19,7 @@ public:
     virtual void clearDNS() = 0;
     virtual void clearTerminal() = 0;
     virtual void restartNetwork() = 0;
-    virtual std::string getDNS() = 0;
+    virtual std::string getDNSServers() = 0;
 };
 
 class Windows : public OS {
@@ -28,13 +28,11 @@ public:
         system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp");
     }
 
-    void setDNS(const DNSServer& server) override {
-        clearDNS();
-        std::string DNSSetterCommand("netsh interface ipv4 add dnsservers \"Wi-Fi\" ");
-        for (char i{0}; i<2; i++) {
-            std::string DNSSetterCommand(DNSSetterCommand + " " + server.ip[i] + " index=" + std::to_string(i + 1));
-            system(DNSSetterCommand.c_str());
-        }
+    void setDNS(const DNSServer& DNSServer) override {
+        std::string DNSSetterCommand("netsh interface ipv4 add dnsservers \"Wi-Fi\"");
+        for (const auto& ip : DNSServer.IPs)
+            DNSSetterCommand += " " + ip;
+        system(DNSSetterCommand.c_str());
     }
 
     void clearTerminal() override {
@@ -46,23 +44,21 @@ public:
         system("netsh interface set interface \"Wi-Fi\" admin=enable");
     }
 
-    std::string getDNS() override {
+    std::string getDNSServers() override {
         FILE* pipe = popen("powershell -command \"(Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.DNSServerSearchOrder -ne $null }).DNSServerSearchOrder -join ', '\"", "r");
         if (!pipe) {
             std::cerr<<"popen failed."<<std::endl;
             return "";
         }
 
-        std::array<char, 128> buffer;
-        std::string result;
-        while (!feof(pipe)) {
-            if (fgets(buffer.data(), 128, pipe) != nullptr)
-                result += buffer.data();
-        }
+        std::array<char, 256> buffer;
+        std::string DNSServers;
+        while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr)
+            DNSServers += buffer.data();
         pclose(pipe);
 
-        result.erase(std::remove_if(result.begin(), result.end(), [](char c) { return c == '\n' || c == '\r'; }), result.end());
-        return result;
+        DNSServers.erase(std::remove_if(DNSServers.begin(), DNSServers.end(), [](char c) { return c == '\n' || c == '\r'; }), DNSServers.end());
+        return DNSServers;
     }
 };
 
@@ -72,9 +68,9 @@ public:
         system("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\" \"$(ip -o -4 route show to default | awk '{print $3}' | tail -n 1)\"");
     }
 
-    void setDNS(const DNSServer& server) override {
-        const std::string dns_setter_command("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" " + server.ip[0] + " " + server.ip[1]);
-        system(dns_setter_command.c_str());
+    void setDNS(const DNSServer& DNSServer) override {
+        std::string DNSSetterCommand("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" " + DNSServer.IPs[0] + " " + DNSServer.IPs[1]);
+        system(DNSSetterCommand.c_str());
     }
 
     void clearTerminal() override {
@@ -85,20 +81,18 @@ public:
         system("systemctl restart NetworkManager");
     }
 
-    std::string getDNS() override {
-        std::string dns_servers;
+    std::string getDNSServers() override {
+        std::string DNSServers;
         FILE* pipe = popen("resolvectl status | awk '/DNS Servers:/ { for (i = 3; i <= NF; ++i) { dns_servers = dns_servers $i \", \"; } } END { sub(/, $/, \"\", dns_servers); print dns_servers }'", "r");
         if (pipe != nullptr) {
-            char buffer[128];
-            while (fgets(buffer, 128, pipe) != nullptr)
-                dns_servers += buffer;
+            std::array<char, 256> buffer;
+            while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr)
+                DNSServers += buffer.data();
             pclose(pipe);
         }
 
-        if (!dns_servers.empty() && dns_servers.back() == '\n')
-            dns_servers.pop_back();
-
-        return dns_servers;
+        DNSServers.erase(std::remove_if(DNSServers.begin(), DNSServers.end(), [](char c) { return c == '\n' || c == '\r'; }), DNSServers.end());
+        return DNSServers;
     }
 };
 
@@ -118,7 +112,7 @@ void showHelp() {
 
 void showDNSServersList(std::vector<DNSServer> DNSServers) {
     for (size_t i=0; i<DNSServers.size(); i++)
-        std::cout<<"\tName: "<<DNSServers[i].name<<", Number: "<<i+1<<", DNS: ("<<DNSServers[i].ip[0]<<", "<<DNSServers[i].ip[1]<<")"<<std::endl;
+        std::cout<<"\tName: "<<DNSServers[i].name<<", Number: "<<i+1<<", DNS: ("<<DNSServers[i].IPs[0]<<", "<<DNSServers[i].IPs[1]<<")"<<std::endl;
 }
 
 int main()
@@ -152,17 +146,17 @@ int main()
         else if (command == "help" || command == "h")
             showHelp();
 
-        else if (command == "clear" || command == "c")
-            os.clearTerminal();
-
         else if (command == "list" || command == "l")
             showDNSServersList(DNSServers);
+
+        else if (command == "clear" || command == "c")
+            os.clearTerminal();
 
         else if (command == "restart" || command == "r")
             os.restartNetwork();
 
         else if (command == "dns" || command == "d")
-            std::cout<<os.getDNS()<<std::endl;
+            std::cout<<os.getDNSServers()<<std::endl;
 
         else if (isNumber(command)) {
             long DNSServerNumber {std::stol(command) - 1};
