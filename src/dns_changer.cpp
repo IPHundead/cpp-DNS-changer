@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <array>
-#include <fstream>
 #include <algorithm>
 
 class dns_server
@@ -33,10 +32,7 @@ class Windows : public OS
 public:
     void clear_dns() override
     {
-        if (system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp") == 0)
-            std::cout<<"\r\033[1ADNS cleared successfully."<<std::endl;
-        else
-            std::cerr<<"\r\033[1AAn error occurred in clearing DNS."<<std::endl;
+        system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp");
     }
 
     void set_dns(dns_server server) override
@@ -46,13 +42,8 @@ public:
         for (char i = 0; i < 2; i++)
         {
             std::string dns_setter_cmd(add_dns_cmd + " " + server.ip[i] + " index=" + std::to_string(i + 1));
-            if (system(dns_setter_cmd.c_str()) == 1)
-            {
-                std::cerr<<"\r\033[1AAn error occurred in setting DNS."<<std::endl;
-                return;
-            }
+            system(dns_setter_cmd.c_str());
         }
-        std::cout<<"\r\033[2ADNS has been set successfully!"<<std::endl;
     }
 
     void clear_terminal() override
@@ -62,40 +53,29 @@ public:
 
     void restart_network() override
     {
-        if (system("netsh interface set interface \"Wi-Fi\" admin=disable") == 0)
-            std::cout<<"\r\033[1AThe Internet was turned off successfully."<<std::endl;
-        else
-            std::cerr<<"\r\033[1AAn error occurred in turning off the internet."<<std::endl;
-
-        if (system("netsh interface set interface \"Wi-Fi\" admin=enable") == 0)
-            std::cout<<"\r\033[1AThe Internet was turned on successfully."<<std::endl;
-        else
-            std::cerr<<"\r\033[1AAn error occurred in turning on the internet."<<std::endl;
+        system("netsh interface set interface \"Wi-Fi\" admin=disable");
+        system("netsh interface set interface \"Wi-Fi\" admin=enable");
     }
 
     std::string get_dns() override
     {
-        std::array<char, 128> buffer;
-        std::string result;
-
         FILE* pipe = popen("powershell -command \"(Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.DNSServerSearchOrder -ne $null }).DNSServerSearchOrder -join ', '\"", "r");
         if (!pipe)
         {
-            std::cerr << "popen failed." << std::endl;
+            std::cerr<<"popen failed."<<std::endl;
             return "";
         }
 
+        std::array<char, 128> buffer;
+        std::string result;
         while (!feof(pipe))
         {
             if (fgets(buffer.data(), 128, pipe) != nullptr)
                 result += buffer.data();
         }
-
         pclose(pipe);
 
-        // Remove any trailing newline characters
         result.erase(std::remove_if(result.begin(), result.end(), [](char c) { return c == '\n' || c == '\r'; }), result.end());
-
         return result;
     }
 };
@@ -105,19 +85,13 @@ class Linux : public OS
 public:
     void clear_dns() override
     {
-        if (system("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\" \"$(ip -o -4 route show to default | awk '{print $3}' | tail -n 1)\"") == 0)
-            std::cout<<"DNS cleared successfully."<<std::endl;
-        else
-            std::cerr<<"An error occurred in clearing DNS."<<std::endl;
+        system("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\" \"$(ip -o -4 route show to default | awk '{print $3}' | tail -n 1)\"");
     }
 
     void set_dns(dns_server server) override
     {
         const std::string dns_setter_cmd("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" " + server.ip[0] + " " + server.ip[1]);
-        if (system(dns_setter_cmd.c_str()) == 0)
-            std::cout<<"DNS has been set successfully!"<<std::endl;
-        else
-            std::cerr<<"An error occurred in setting DNS."<<std::endl;
+        system(dns_setter_cmd.c_str());
     }
 
     void clear_terminal() override
@@ -127,10 +101,7 @@ public:
 
     void restart_network() override
     {
-        if (system("sudo systemctl restart NetworkManager") == 0)
-            std::cout<<"Internet reconnection successful."<<std::endl;
-        else
-            std::cerr<<"Failed to reconnect the internet."<<std::endl;
+        system("systemctl restart NetworkManager");
     }
 
     std::string get_dns() override
