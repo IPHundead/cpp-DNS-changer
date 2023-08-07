@@ -26,13 +26,17 @@ class Windows : public OS {
 public:
     void clearDNS() override {
         system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp");
+        std::cout<<"\033[1A";
     }
 
     void setDNS(const DNSServer& DNSServer) override {
-        std::string DNSSetterCommand("netsh interface ipv4 add dnsservers \"Wi-Fi\"");
-        for (const auto& ip : DNSServer.IPs)
-            DNSSetterCommand += " " + ip;
-        system(DNSSetterCommand.c_str());
+        clearDNS();
+        for (char i=0; i<2; i++)
+        {
+            std::string DNSSetterCommand = "netsh interface ipv4 add dnsservers \"Wi-Fi\" " + DNSServer.IPs[i] + " index=" + std::to_string(i+1);
+            system(DNSSetterCommand.c_str());
+            std::cout<<"\033[1A";
+        }
     }
 
     void clearTerminal() override {
@@ -114,7 +118,7 @@ void showHelp() {
 
 void showDNSServersList(std::vector<DNSServer> DNSServers) {
     for (size_t i=0; i<DNSServers.size(); i++)
-        std::cout<<"\tName: "<<DNSServers[i].name<<", Number: "<<i+1<<", DNS: ("<<DNSServers[i].IPs[0]<<", "<<DNSServers[i].IPs[1]<<")"<<std::endl;
+        std::cout<<"\t"<<i+1<<". Name: "<<DNSServers[i].name<<", DNS: ("<<DNSServers[i].IPs[0]<<", "<<DNSServers[i].IPs[1]<<")"<<std::endl;
 }
 
 int main()
