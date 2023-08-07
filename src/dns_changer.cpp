@@ -65,12 +65,14 @@ public:
 class Linux : public OS {
 public:
     void clearDNS() override {
-        system("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\" \"$(ip -o -4 route show to default | awk '{print $3}' | tail -n 1)\"");
+        system("nmcli con mod \"$(nmcli -t -f NAME c show --active | head -n1)\" ipv4.ignore-auto-dns yes");
+        system("nmcli con mod \"$(nmcli -t -f NAME c show --active | head -n1)\" ipv4.dns \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\"");
     }
 
     void setDNS(const DNSServer& DNSServer) override {
-        std::string DNSSetterCommand("resolvectl dns \"$(ip -o -4 route show to default | awk '{print $5}')\" " + DNSServer.IPs[0] + " " + DNSServer.IPs[1]);
-        system(DNSSetterCommand.c_str());
+        std::string connectionName = "$(nmcli -t -f NAME c show --active | head -n1)";
+        system(("nmcli con mod " + connectionName + " ipv4.dns \"" + DNSServer.IPs[0] + " " + DNSServer.IPs[1] + "\"").c_str());
+        system(("nmcli con mod " + connectionName + " ipv4.ignore-auto-dns yes").c_str());
     }
 
     void clearTerminal() override {
