@@ -28,10 +28,13 @@ public:
     }
 
     void setDNS(const DNSServer& DNSServer) override {
-        std::string DNSSetterCommand("netsh interface ipv4 add dnsservers \"Wi-Fi\"");
-        for (const auto& ip : DNSServer.IPs)
-            DNSSetterCommand += " " + ip;
-        system(DNSSetterCommand.c_str());
+        clearDNS();
+        for (char i=0; i<2; i++)
+        {
+            std::string DNSSetterCommand = "netsh interface ipv4 add dnsservers \"Wi-Fi\" " + DNSServer.IPs[i] + " index=" + std::to_string(i+1);
+            system(DNSSetterCommand.c_str());
+            std::cout<<"\033[1A";
+        }
     }
 
     void clearTerminal() override {
