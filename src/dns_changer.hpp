@@ -1,6 +1,7 @@
 #include <vector>
 #include <array>
 #include <algorithm>
+#include <iostream>
 
 class DNSServer {
 public:
