@@ -10,6 +10,4 @@ int main()
 
     ui DNSChangerUI;
     DNSChangerUI.run(DNSServers);
-
-    return 0;
 }
