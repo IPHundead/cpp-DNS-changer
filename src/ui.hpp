@@ -26,6 +26,7 @@ private:
 
     void gotoxy(short x, short y);
     char getch_();
+    void displayHeader();
     void displayDNSServers(const std::vector<DNSServer>& DNSServers);
     void displayStatus(std::string message);
     void displayCurrentDNS();
@@ -74,36 +75,42 @@ char ui::getch_() {
     return ch;
 }
 
+void ui::displayHeader()
+{
+    gotoxy(0, 0);
+    std::cout<<"(e)xit, (r)estart network, (f)lush DNS";
+}
+
 void ui::displayDNSServers(const std::vector<DNSServer>& DNSServers) {
     for (int i{0}; i<DNSServers.size(); i++)
     {
-        gotoxy(0, i + 4);
+        gotoxy(0, i + 5);
         std::cout<<(i == DNSServerSelected ? "\033[0;32m>> " : "   ")<<DNSServers[i].name;
-        gotoxy(largestDNSServerNameSize + 6, i + 4);
+        gotoxy(largestDNSServerNameSize + 6, i + 5);
         std::cout<<"[" << DNSServers[i].IPs[0]<<"]";
-        gotoxy(largestDNSServerNameSize + 23, i + 4);
+        gotoxy(largestDNSServerNameSize + 23, i + 5);
         std::cout<<"[" << DNSServers[i].IPs[1]<<(i == DNSServerSelected ? "]\033[0m" : "]")<<std::endl;
     }
 }
 
 void ui::displayStatus(std::string message)
 {
-    gotoxy(0, 0);
+    gotoxy(0, 2);
     std::cout<<"Status: ("<<message<<")                 ";
 }
 
 void ui::displayCurrentDNS()
 {
     displayStatus("Getting system DNS...");
-    gotoxy(0, 2);
+    gotoxy(0, 3);
     std::cout<<"System DNS: "<<os.getDNSServers()<<"                            ";
 }
 
 void ui::run() {
-
     os.clearTerminal();
     displayCurrentDNS();
     while (true) {
+        displayHeader();
         displayStatus("Done");
         displayDNSServers(*DNSServers);
 
