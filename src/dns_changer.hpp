@@ -19,6 +19,7 @@ public:
     virtual void clearDNS() = 0;
     virtual void clearTerminal() = 0;
     virtual void restartNetwork() = 0;
+    virtual void changeColor() = 0;
     virtual std::string getDNSServers() = 0;
 };
 
@@ -26,6 +27,7 @@ class Windows : public OS {
 public:
     void clearDNS() override {
         system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp");
+        system("ipconfig /flushdns");
     }
 
     void setDNS(const DNSServer& DNSServer) override {
@@ -42,6 +44,10 @@ public:
         system("cls");
     }
 
+	void changeColor() override{
+    	system("color 8f");
+	}
+	
     void restartNetwork() override {
         system("netsh interface set interface \"Wi-Fi\" admin=disable");
         system("netsh interface set interface \"Wi-Fi\" admin=enable");

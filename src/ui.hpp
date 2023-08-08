@@ -1,4 +1,3 @@
-#include <iostream>
 #include "dns_changer.hpp"
 #if (defined (_WIN32) || defined (_WIN64))
 #include <windows.h>
@@ -6,6 +5,9 @@
 #elif (defined (LINUX) || defined (__linux__))
 #include <termios.h>
 #endif
+
+std::string color_red_start="\033[1;31m";
+std::string color_red_end="\033[0m";
 
 class ui {
 private:
@@ -24,6 +26,8 @@ private:
         ENTER_KEY = 10
     };
     #endif    
+
+
 
     void gotoxy(short x, short y);
     char getch_();
@@ -51,6 +55,7 @@ void ui::gotoxy(short x, short y) {
 }
 
 void ui::run(const std::vector<DNSServer>& DNSServers) {
+
     os.clearTerminal();
     displayCurrentDNS();
     while (true) {
@@ -67,7 +72,7 @@ void ui::run(const std::vector<DNSServer>& DNSServers) {
             case DOWN_ARROW_KEY:
                 DNSServerSelected = DNSServerSelected < DNSServers.size() - 1 ? DNSServerSelected + 1 : DNSServerSelected;
                 break;
-        } break;
+        }
 
         #elif (defined (LINUX) || defined (__linux__))
         case 27: switch(ch = getch_()) { case 91: switch(ch = getch_()) {
@@ -77,24 +82,30 @@ void ui::run(const std::vector<DNSServer>& DNSServers) {
             case DOWN_ARROW_KEY:
                 DNSServerSelected = DNSServerSelected < DNSServers.size() - 1 ? DNSServerSelected + 1 : DNSServerSelected;
                 break;
-        } break; } break;
+        } break; } 
         #endif
 
+		break;
+		
         case 'r':
             displayStatus("Restarting network...");
             os.restartNetwork();
+            os.clearTerminal();
             displayCurrentDNS();
             break;
 
         case 'f':
             displayStatus("Clearing DNS...");
             os.clearDNS();
+            os.clearTerminal();
             displayCurrentDNS();
             break;
 
         case ENTER_KEY:
+        	os.clearTerminal();
             displayStatus("Setting DNS...");
             os.setDNS(DNSServers[DNSServerSelected]);
+            os.clearTerminal();
             displayCurrentDNS();
             break;
 
@@ -126,11 +137,25 @@ char ui::getch_() {
 
 void ui::displayDNSServers(const std::vector<DNSServer>& DNSServers) {
     gotoxy(0, 4);
-    for (auto i{0}; i<DNSServers.size(); i++)
+
+    
+    for (int i{0}; i<DNSServers.size(); i++)
         if (i == DNSServerSelected)
-            std::cout<<"\033[1;31m>> "<<DNSServers[i].name<<": "<<DNSServers[i].IPs[0]<<", "<<DNSServers[i].IPs[1]<<" <<\033[0m"<<std::endl;
+        {
+            std::cout<< color_red_start+">> "<<DNSServers[i].name;
+            gotoxy(30 ,4+i);
+			std::cout <<"[ " << DNSServers[i].IPs[0]<<" ]";
+			gotoxy(49, 4+i);
+			std::cout <<"[ " << DNSServers[i].IPs[1]<<" ]"+color_red_end<<std::endl;
+		}
         else
-            std::cout<<"   "<<DNSServers[i].name<<": "<<DNSServers[i].IPs[0]<<", "<<DNSServers[i].IPs[1]<<"   "<<std::endl;
+        {
+        	std::cout<< "   "<<DNSServers[i].name;
+            gotoxy(30 ,4+i);
+			std::cout <<"[ " << DNSServers[i].IPs[0]<<" ]";
+			gotoxy(49, 4+i);
+			std::cout <<"[ " << DNSServers[i].IPs[1]<<" ]"<<std::endl;
+		}
 }
 
 void ui::displayStatus(std::string message)
