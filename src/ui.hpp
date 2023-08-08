@@ -25,7 +25,7 @@ private:
     };
     #endif    
 
-    void gotoxy(int x, int y);
+    void gotoxy(short x, short y);
     char getch_();
     void displayDNSServers(const std::vector<DNSServer>& DNSServers);
     void displayStatus(std::string message);
@@ -36,8 +36,18 @@ public:
     void run(const std::vector<DNSServer>& DNSServers);
 };
 
-void ui::gotoxy(int x, int y) {
+void ui::gotoxy(short x, short y) {
+    #if (defined (_WIN32) || defined (_WIN64))
+    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_CURSOR_INFO cursorInfo;
+    GetConsoleCursorInfo(out, &cursorInfo);
+    cursorInfo.bVisible = false;
+    SetConsoleCursorInfo(out, &cursorInfo);
+    COORD c = {x, y};
+    SetConsoleCursorPosition (GetStdHandle(STD_OUTPUT_HANDLE), c);
+    #elif (defined (LINUX) || defined (__linux__))
     std::cout<<"\x1B["<<y<<";"<<x<<"H";
+    #endif
 }
 
 void ui::run(const std::vector<DNSServer>& DNSServers) {
@@ -52,10 +62,10 @@ void ui::run(const std::vector<DNSServer>& DNSServers) {
         #if (defined (_WIN32) || defined (_WIN64))
         case -32: switch(ch = getch_()) {
             case UP_ARROW_KEY:
-                std::cout<<"Up ";
+                DNSServerSelected = DNSServerSelected > 0 ? DNSServerSelected - 1 : DNSServerSelected;
                 break;
             case DOWN_ARROW_KEY:
-                std::cout<<"Down ";
+                DNSServerSelected = DNSServerSelected < DNSServers.size() - 1 ? DNSServerSelected + 1 : DNSServerSelected;
                 break;
         } break;
 
