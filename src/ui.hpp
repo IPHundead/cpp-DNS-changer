@@ -168,7 +168,6 @@ int ui::findLargestDNSServerNameSize()
 {
     int largestDNSServerNameSize {0};
     for (const auto& DNSServer : *DNSServers)
-        if (DNSServer.name.size() > largestDNSServerNameSize)
-            largestDNSServerNameSize = DNSServer.name.size();
+        largestDNSServerNameSize = std::max((int)DNSServer.name.size(), largestDNSServerNameSize);
     return largestDNSServerNameSize;
 }
