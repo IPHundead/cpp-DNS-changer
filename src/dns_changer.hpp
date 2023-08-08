@@ -19,7 +19,6 @@ public:
     virtual void clearDNS() = 0;
     virtual void clearTerminal() = 0;
     virtual void restartNetwork() = 0;
-    virtual void changeColor() = 0;
     virtual std::string getDNSServers() = 0;
 };
 
@@ -43,10 +42,6 @@ public:
     void clearTerminal() override {
         system("cls");
     }
-
-	void changeColor() override{
-    	system("color 8f");
-	}
 	
     void restartNetwork() override {
         system("netsh interface set interface \"Wi-Fi\" admin=disable");

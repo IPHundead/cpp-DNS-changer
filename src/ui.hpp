@@ -6,38 +6,41 @@
 #include <termios.h>
 #endif
 
-std::string color_red_start="\033[1;31m";
-std::string color_red_end="\033[0m";
-
 class ui {
 private:
     #if (defined (_WIN32) || defined (_WIN64))
     Windows os;
-    enum keyASCII {
+    enum keyboardASCIIs {
         UP_ARROW_KEY = 72,
         DOWN_ARROW_KEY = 80,
         ENTER_KEY = 13
     };
     #elif (defined (LINUX) || defined (__linux__))
     Linux os;
-    enum keyASCII {
+    enum keyboardASCIIs {
         UP_ARROW_KEY = 65,
         DOWN_ARROW_KEY = 66,
         ENTER_KEY = 10
     };
-    #endif    
-
-
+    #endif
 
     void gotoxy(short x, short y);
     char getch_();
     void displayDNSServers(const std::vector<DNSServer>& DNSServers);
     void displayStatus(std::string message);
     void displayCurrentDNS();
+    int findLargestDNSServerNameSize();
+    int largestDNSServerNameSize;
     int DNSServerSelected = 0;
+    std::vector<DNSServer>* DNSServers;
 
 public:
-    void run(const std::vector<DNSServer>& DNSServers);
+    ui(std::vector<DNSServer>* DNSServers)
+    {
+        this->DNSServers = DNSServers;
+        largestDNSServerNameSize = findLargestDNSServerNameSize();
+    }
+    void run();
 };
 
 void ui::gotoxy(short x, short y) {
@@ -47,75 +50,11 @@ void ui::gotoxy(short x, short y) {
     GetConsoleCursorInfo(out, &cursorInfo);
     cursorInfo.bVisible = false;
     SetConsoleCursorInfo(out, &cursorInfo);
-    COORD c = {x, y};
+    COORD c {x, y};
     SetConsoleCursorPosition (GetStdHandle(STD_OUTPUT_HANDLE), c);
     #elif (defined (LINUX) || defined (__linux__))
     std::cout<<"\x1B["<<y<<";"<<x<<"H";
     #endif
-}
-
-void ui::run(const std::vector<DNSServer>& DNSServers) {
-
-    os.clearTerminal();
-    displayCurrentDNS();
-    while (true) {
-        displayStatus("Done");
-        displayDNSServers(DNSServers);
-        char ch = getch_();
-
-        switch (ch) {
-        #if (defined (_WIN32) || defined (_WIN64))
-        case -32: switch(ch = getch_()) {
-            case UP_ARROW_KEY:
-                DNSServerSelected = DNSServerSelected > 0 ? DNSServerSelected - 1 : DNSServerSelected;
-                break;
-            case DOWN_ARROW_KEY:
-                DNSServerSelected = DNSServerSelected < DNSServers.size() - 1 ? DNSServerSelected + 1 : DNSServerSelected;
-                break;
-        }
-
-        #elif (defined (LINUX) || defined (__linux__))
-        case 27: switch(ch = getch_()) { case 91: switch(ch = getch_()) {
-            case UP_ARROW_KEY:
-                DNSServerSelected = DNSServerSelected > 0 ? DNSServerSelected - 1 : DNSServerSelected;
-                break;
-            case DOWN_ARROW_KEY:
-                DNSServerSelected = DNSServerSelected < DNSServers.size() - 1 ? DNSServerSelected + 1 : DNSServerSelected;
-                break;
-        } break; } 
-        #endif
-
-		break;
-		
-        case 'r':
-            displayStatus("Restarting network...");
-            os.restartNetwork();
-            os.clearTerminal();
-            displayCurrentDNS();
-            break;
-
-        case 'f':
-            displayStatus("Clearing DNS...");
-            os.clearDNS();
-            os.clearTerminal();
-            displayCurrentDNS();
-            break;
-
-        case ENTER_KEY:
-        	os.clearTerminal();
-            displayStatus("Setting DNS...");
-            os.setDNS(DNSServers[DNSServerSelected]);
-            os.clearTerminal();
-            displayCurrentDNS();
-            break;
-
-        case 'e':
-            exit(0);
-
-        default:
-            break;
-        }
-    }
 }
 
 char ui::getch_() {
@@ -136,26 +75,15 @@ char ui::getch_() {
 }
 
 void ui::displayDNSServers(const std::vector<DNSServer>& DNSServers) {
-    gotoxy(0, 4);
-
-    
     for (int i{0}; i<DNSServers.size(); i++)
-        if (i == DNSServerSelected)
-        {
-            std::cout<< color_red_start+">> "<<DNSServers[i].name;
-            gotoxy(30 ,4+i);
-			std::cout <<"[ " << DNSServers[i].IPs[0]<<" ]";
-			gotoxy(49, 4+i);
-			std::cout <<"[ " << DNSServers[i].IPs[1]<<" ]"+color_red_end<<std::endl;
-		}
-        else
-        {
-        	std::cout<< "   "<<DNSServers[i].name;
-            gotoxy(30 ,4+i);
-			std::cout <<"[ " << DNSServers[i].IPs[0]<<" ]";
-			gotoxy(49, 4+i);
-			std::cout <<"[ " << DNSServers[i].IPs[1]<<" ]"<<std::endl;
-		}
+    {
+        gotoxy(0, i + 4);
+        std::cout<<(i == DNSServerSelected ? "\033[0;32m>> " : "   ")<<DNSServers[i].name;
+        gotoxy(largestDNSServerNameSize + 6, i + 4);
+        std::cout<<"[" << DNSServers[i].IPs[0]<<"]";
+        gotoxy(largestDNSServerNameSize + 23, i + 4);
+        std::cout<<"[" << DNSServers[i].IPs[1]<<(i == DNSServerSelected ? "]\033[0m" : "]")<<std::endl;
+    }
 }
 
 void ui::displayStatus(std::string message)
@@ -169,4 +97,71 @@ void ui::displayCurrentDNS()
     displayStatus("Getting system DNS...");
     gotoxy(0, 2);
     std::cout<<"System DNS: "<<os.getDNSServers()<<"                            ";
+}
+
+void ui::run() {
+
+    os.clearTerminal();
+    displayCurrentDNS();
+    while (true) {
+        displayStatus("Done");
+        displayDNSServers(*DNSServers);
+
+        char ch = getch_();
+        switch (ch) {
+        #if (defined (_WIN32) || defined (_WIN64))
+        case -32: switch(ch = getch_()) {
+            case UP_ARROW_KEY:
+                DNSServerSelected = DNSServerSelected > 0 ? DNSServerSelected - 1 : DNSServerSelected;
+                break;
+            case DOWN_ARROW_KEY:
+                DNSServerSelected = DNSServerSelected < DNSServers.size() - 1 ? DNSServerSelected + 1 : DNSServerSelected;
+                break;
+        }
+        #elif (defined (LINUX) || defined (__linux__))
+        case 27: switch(ch = getch_()) { case 91: switch(ch = getch_()) {
+            case UP_ARROW_KEY:
+                DNSServerSelected = DNSServerSelected > 0 ? DNSServerSelected - 1 : DNSServerSelected;
+                break;
+            case DOWN_ARROW_KEY:
+                DNSServerSelected = DNSServerSelected < (*DNSServers).size() - 1 ? DNSServerSelected + 1 : DNSServerSelected;
+                break;
+        } break; }
+        #endif
+		break;
+
+        case 'r':
+            displayStatus("Restarting network...");
+            os.restartNetwork();
+            displayCurrentDNS();
+            break;
+
+        case 'f':
+            displayStatus("Clearing DNS...");
+            os.clearDNS();
+            displayCurrentDNS();
+            break;
+
+        case ENTER_KEY:
+            displayStatus("Setting DNS...");
+            os.setDNS((*DNSServers)[DNSServerSelected]);
+            displayCurrentDNS();
+            break;
+
+        case 'e':
+            exit(0);
+
+        default:
+            break;
+        }
+    }
+}
+
+int ui::findLargestDNSServerNameSize()
+{
+    int largestDNSServerNameSize {0};
+    for (const auto& DNSServer : *DNSServers)
+        if (DNSServer.name.size() > largestDNSServerNameSize)
+            largestDNSServerNameSize = DNSServer.name.size();
+    return largestDNSServerNameSize;
 }

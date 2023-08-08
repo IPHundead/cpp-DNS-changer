@@ -11,6 +11,6 @@ int main()
         {"OpenDNS", "208.67.222.222", "208.67.220.220"}
     };
 
-    ui DNSChangerUI;
-    DNSChangerUI.run(DNSServers);
+    ui DNSChangerUI(&DNSServers);
+    DNSChangerUI.run();
 }
