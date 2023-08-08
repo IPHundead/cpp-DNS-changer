@@ -2,7 +2,7 @@
 #include "dns_changer.hpp"
 #if (defined (_WIN32) || defined (_WIN64))
 #include <windows.h>
-#include <conio.h
+#include <conio.h>
 #elif (defined (LINUX) || defined (__linux__))
 #include <termios.h>
 #endif
@@ -11,6 +11,14 @@ class ui {
 private:
     #if (defined (_WIN32) || defined (_WIN64))
     Windows os;
+    enum keyASCII
+    {
+        UP_ARROW_KEY = 72,
+        DOWN_ARROW_KEY = 80,
+        RIGHT_ARROW_KEY = 77,
+        LEFT_ARROW_KEY = 75,
+        ENTER_KEY = 13
+    };
     #elif (defined (LINUX) || defined (__linux__))
     Linux os;
     enum keyASCII
@@ -41,6 +49,20 @@ void ui::run(const std::vector<DNSServer>& DNSServers) {
         switch (ch)
         {
         #if (defined (_WIN32) || defined (_WIN64))
+        case -32: switch(ch = getch_()) {
+            case LEFT_ARROW_KEY:
+                std::cout<<"Left ";
+                    break;
+            case RIGHT_ARROW_KEY:
+                std::cout<<"Right ";
+                break;
+            case UP_ARROW_KEY:
+                std::cout<<"Up ";
+                break;
+            case DOWN_ARROW_KEY:
+                std::cout<<"Down ";
+                break;
+        } break;
         #elif (defined (LINUX) || defined (__linux__))
         case 27: switch(ch = getch_()) { case 91: switch(ch = getch_()) {
             case LEFT_ARROW_KEY:
