@@ -11,29 +11,26 @@ class ui {
 private:
     #if (defined (_WIN32) || defined (_WIN64))
     Windows os;
-    enum keyASCII
-    {
+    enum keyASCII {
         UP_ARROW_KEY = 72,
         DOWN_ARROW_KEY = 80,
-        RIGHT_ARROW_KEY = 77,
-        LEFT_ARROW_KEY = 75,
         ENTER_KEY = 13
     };
     #elif (defined (LINUX) || defined (__linux__))
     Linux os;
-    enum keyASCII
-    {
+    enum keyASCII {
         UP_ARROW_KEY = 65,
         DOWN_ARROW_KEY = 66,
-        RIGHT_ARROW_KEY = 67,
-        LEFT_ARROW_KEY = 68,
         ENTER_KEY = 10
     };
-    #endif
+    #endif    
 
     void gotoxy(int x, int y);
     char getch_();
-    int DNSSelected = 0;
+    void displayDNSServers(const std::vector<DNSServer>& DNSServers);
+    void displayStatus(std::string message);
+    void displayCurrentDNS();
+    int DNSServerSelected = 0;
 
 public:
     void run(const std::vector<DNSServer>& DNSServers);
@@ -44,18 +41,16 @@ void ui::gotoxy(int x, int y) {
 }
 
 void ui::run(const std::vector<DNSServer>& DNSServers) {
+    os.clearTerminal();
+    displayCurrentDNS();
     while (true) {
+        displayStatus("Done");
+        displayDNSServers(DNSServers);
         char ch = getch_();
-        switch (ch)
-        {
+
+        switch (ch) {
         #if (defined (_WIN32) || defined (_WIN64))
         case -32: switch(ch = getch_()) {
-            case LEFT_ARROW_KEY:
-                std::cout<<"Left ";
-                    break;
-            case RIGHT_ARROW_KEY:
-                std::cout<<"Right ";
-                break;
             case UP_ARROW_KEY:
                 std::cout<<"Up ";
                 break;
@@ -63,33 +58,34 @@ void ui::run(const std::vector<DNSServer>& DNSServers) {
                 std::cout<<"Down ";
                 break;
         } break;
+
         #elif (defined (LINUX) || defined (__linux__))
         case 27: switch(ch = getch_()) { case 91: switch(ch = getch_()) {
-            case LEFT_ARROW_KEY:
-                std::cout<<"Left ";
-                    break;
-            case RIGHT_ARROW_KEY:
-                std::cout<<"Right ";
-                break;
             case UP_ARROW_KEY:
-                std::cout<<"Up ";
+                DNSServerSelected = DNSServerSelected > 0 ? DNSServerSelected - 1 : DNSServerSelected;
                 break;
             case DOWN_ARROW_KEY:
-                std::cout<<"Down ";
+                DNSServerSelected = DNSServerSelected < DNSServers.size() - 1 ? DNSServerSelected + 1 : DNSServerSelected;
                 break;
         } break; } break;
         #endif
 
         case 'r':
-            std::cout<<"Restarting network... ";
+            displayStatus("Restarting network...");
+            os.restartNetwork();
+            displayCurrentDNS();
             break;
 
         case 'f':
-            std::cout<<"Flushing system DNS... ";
+            displayStatus("Clearing DNS...");
+            os.clearDNS();
+            displayCurrentDNS();
             break;
 
         case ENTER_KEY:
-            std::cout<<"Setting DNS... ";
+            displayStatus("Setting DNS...");
+            os.setDNS(DNSServers[DNSServerSelected]);
+            displayCurrentDNS();
             break;
 
         case 'e':
@@ -101,8 +97,7 @@ void ui::run(const std::vector<DNSServer>& DNSServers) {
     }
 }
 
-char ui::getch_()
-{
+char ui::getch_() {
     char ch;
     #if (defined (_WIN32) || defined (_WIN64))
     ch = getch();
@@ -117,4 +112,26 @@ char ui::getch_()
     tcsetattr(0, TCSANOW, &old);
     #endif
     return ch;
+}
+
+void ui::displayDNSServers(const std::vector<DNSServer>& DNSServers) {
+    gotoxy(0, 4);
+    for (auto i{0}; i<DNSServers.size(); i++)
+        if (i == DNSServerSelected)
+            std::cout<<"\033[1;31m>> "<<DNSServers[i].name<<": "<<DNSServers[i].IPs[0]<<", "<<DNSServers[i].IPs[1]<<" <<\033[0m"<<std::endl;
+        else
+            std::cout<<"   "<<DNSServers[i].name<<": "<<DNSServers[i].IPs[0]<<", "<<DNSServers[i].IPs[1]<<"   "<<std::endl;
+}
+
+void ui::displayStatus(std::string message)
+{
+    gotoxy(0, 0);
+    std::cout<<"Status: ("<<message<<")                 ";
+}
+
+void ui::displayCurrentDNS()
+{
+    displayStatus("Getting system DNS...");
+    gotoxy(0, 2);
+    std::cout<<"System DNS: "<<os.getDNSServers()<<"                            ";
 }
