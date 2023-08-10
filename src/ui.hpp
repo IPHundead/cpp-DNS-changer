@@ -26,10 +26,12 @@ private:
 
     void gotoxy(short x, short y);
     char getch_();
-    void displayHeader();
-    void displayDNSServers(const std::vector<DNSServer>& DNSServers);
+    void displayHelp();
     void displayStatus(std::string message);
     void displayCurrentDNS();
+    void displayDNSServersTableHeader();
+    void displayDNSServersTableTail();
+    void displayDNSServersTable(const std::vector<DNSServer>& DNSServers);
     int findLargestDNSServerNameSize();
     int largestDNSServerNameSize;
     int DNSServerSelected = 0;
@@ -75,22 +77,10 @@ char ui::getch_() {
     return ch;
 }
 
-void ui::displayHeader()
+void ui::displayHelp()
 {
     gotoxy(0, 0);
     std::cout<<"(e)xit, (r)estart network, (f)lush DNS";
-}
-
-void ui::displayDNSServers(const std::vector<DNSServer>& DNSServers) {
-    for (int i{0}; i<DNSServers.size(); i++)
-    {
-        gotoxy(0, i + 5);
-        std::cout<<(i == DNSServerSelected ? "\033[0;32m>> " : "   ")<<DNSServers[i].name;
-        gotoxy(largestDNSServerNameSize + 6, i + 5);
-        std::cout<<"[" << DNSServers[i].IPs[0]<<"]";
-        gotoxy(largestDNSServerNameSize + 23, i + 5);
-        std::cout<<"[" << DNSServers[i].IPs[1]<<(i == DNSServerSelected ? "]\033[0m" : "]")<<std::endl;
-    }
 }
 
 void ui::displayStatus(std::string message)
@@ -106,13 +96,60 @@ void ui::displayCurrentDNS()
     std::cout<<"System DNS: "<<os.getDNSServers()<<"                            ";
 }
 
+void ui::displayDNSServersTableHeader()
+{
+    gotoxy(0, 5);
+    std::cout<<"+";
+    for (int i=0; i<largestDNSServerNameSize + 40; i++)
+        std::cout<<"=";
+    std::cout<<"+"<<std::endl<<"|";
+    for (int i=0; i<largestDNSServerNameSize + 40; i++)
+        std::cout<<((i == largestDNSServerNameSize + 4 || i == largestDNSServerNameSize + 22) ? "|" : " ");
+    std::cout<<"|";
+    gotoxy(largestDNSServerNameSize + 10, 6);
+    std::cout<<"Primary  IP";
+    gotoxy(largestDNSServerNameSize + 27, 6);
+    std::cout<<"Secondary  IP";
+    gotoxy(largestDNSServerNameSize / 2 - 2, 6);
+    std::cout<<"Server Name"<<std::endl<<"+";
+    for (int i=0; i<largestDNSServerNameSize + 40; i++)
+        std::cout<<((i == largestDNSServerNameSize + 4 || i == largestDNSServerNameSize + 22) ? "|" : "=");
+    std::cout<<"+"<<std::endl;
+}
+
+void ui::displayDNSServersTableTail()
+{
+    for (int i=0; i<largestDNSServerNameSize + 42; i++)
+        std::cout<<((i == 0 || i == largestDNSServerNameSize + 41) ? "+" : "=");
+    std::cout<<std::endl;
+}
+
+void ui::displayDNSServersTable(const std::vector<DNSServer>& DNSServers) {
+    displayDNSServersTableHeader();
+    for (int i{0}; i<DNSServers.size(); i++)
+    {
+        std::cout<<(i == DNSServerSelected ? "| \033[0;32m> " : "|   ")<<DNSServers[i].name<<"\033[0m";
+        gotoxy(largestDNSServerNameSize + 6, i + 8);
+        std::cout<<(i == DNSServerSelected ? "|\033[0;32m " : "| ");
+        gotoxy(largestDNSServerNameSize + 8 + ((16 - DNSServers[i].IPs[0].size()) / 2), i + 8);
+        std::cout<<DNSServers[i].IPs[0]<<"\033[0m";
+        gotoxy(largestDNSServerNameSize + 24, i + 8);
+        std::cout<<(i == DNSServerSelected ? "|\033[0;32m " : "| ");
+        gotoxy(largestDNSServerNameSize + 26 + ((16 - DNSServers[i].IPs[1].size()) / 2), i + 8);
+        std::cout<<DNSServers[i].IPs[1]<<"\033[0m";
+        gotoxy(largestDNSServerNameSize + 42, i + 8);
+        std::cout<<"|"<<std::endl;
+    }
+    displayDNSServersTableTail();
+}
+
 void ui::run() {
     os.clearTerminal();
     displayCurrentDNS();
     while (true) {
-        displayHeader();
+        displayHelp();
         displayStatus("Done");
-        displayDNSServers(*DNSServers);
+        displayDNSServersTable(*DNSServers);
 
         char ch = getch_();
         switch (ch) {
