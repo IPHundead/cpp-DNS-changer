@@ -144,11 +144,13 @@ void ui::displayDNSServersTable(const std::vector<DNSServer>& DNSServers) {
 }
 
 void ui::run() {
+    bool issue = false;
     os.clearTerminal();
     displayCurrentDNS();
     while (true) {
         displayHelp();
-        displayStatus("Done");
+        displayStatus(issue == true ? "Failed" : "Done");
+        issue = false;
         displayDNSServersTable(*DNSServers);
 
         char ch = getch_();
@@ -176,19 +178,19 @@ void ui::run() {
 
         case 'r':
             displayStatus("Restarting network...");
-            os.restartNetwork();
+            issue = os.restartNetwork();
             displayCurrentDNS();
             break;
 
         case 'f':
             displayStatus("Clearing DNS...");
-            os.clearDNS();
+            issue = os.clearDNS();
             displayCurrentDNS();
             break;
 
         case ENTER_KEY:
             displayStatus("Setting DNS...");
-            os.setDNS((*DNSServers)[DNSServerSelected]);
+            issue = os.setDNS((*DNSServers)[DNSServerSelected]);
             displayCurrentDNS();
             break;
 
