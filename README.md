@@ -12,3 +12,5 @@
 
 ### How to give a file sudo privileges?
     Write the 'sudo' keyword before the './dns_changer' command
+
+[DNS Changer Preview.webm](https://github.com/IPHundead/cpp-DNS-changer/assets/92310427/1ce14cb3-fb43-40ab-9898-c8729cabe823)
