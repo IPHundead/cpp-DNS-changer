@@ -25,17 +25,15 @@ public:
 class Windows : public OS {
 public:
     void clearDNS() override {
-        system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp");
-        system("ipconfig /flushdns");
+        system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp > NUL");
+        system("ipconfig /flushdns > NUL");
     }
 
     void setDNS(const DNSServer& DNSServer) override {
         clearDNS();
-        for (char i=0; i<2; i++)
-        {
-            std::string DNSSetterCommand = "netsh interface ipv4 add dnsservers \"Wi-Fi\" " + DNSServer.IPs[i] + " index=" + std::to_string(i+1);
-            system(DNSSetterCommand.c_str());
-            std::cout<<"\033[1A";
+        for (char i=0; i<2; i++) {
+            std::string DNSSetterCommand = "netsh interface ipv4 add dnsservers \"Wi-Fi\" " + DNSServer.IPs[i] + " index=" + std::to_string(i + 1) + " > NUL";
+            std::system(DNSSetterCommand.c_str());
         }
     }
 
@@ -44,8 +42,8 @@ public:
     }
 	
     void restartNetwork() override {
-        system("netsh interface set interface \"Wi-Fi\" admin=disable");
-        system("netsh interface set interface \"Wi-Fi\" admin=enable");
+        system("netsh interface set interface \"Wi-Fi\" admin=disable > NUL");
+        system("netsh interface set interface \"Wi-Fi\" admin=enable > NUL");
     }
 
     std::string getDNSServers() override {
