@@ -15,35 +15,38 @@ public:
 class OS {
 public:
     virtual ~OS() = default;
-    virtual void setDNS(const DNSServer& server) = 0;
-    virtual void clearDNS() = 0;
+    virtual bool setDNS(const DNSServer& server) = 0;
+    virtual bool clearDNS() = 0;
+    virtual bool restartNetwork() = 0;
     virtual void clearTerminal() = 0;
-    virtual void restartNetwork() = 0;
     virtual std::string getDNSServers() = 0;
 };
 
 class Windows : public OS {
 public:
-    void clearDNS() override {
-        system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp > NUL");
-        system("ipconfig /flushdns > NUL");
+    bool clearDNS() override {
+        bool issue = system("netsh interface ipv4 set dns \"Wi-Fi\" dhcp > NUL") == true;
+        issue = system("ipconfig /flushdns > NUL") == true || issue;
+        return issue;
     }
 
-    void setDNS(const DNSServer& DNSServer) override {
-        clearDNS();
+    bool setDNS(const DNSServer& DNSServer) override {
+        bool issue = clearDNS();
         for (char i=0; i<2; i++) {
             std::string DNSSetterCommand = "netsh interface ipv4 add dnsservers \"Wi-Fi\" " + DNSServer.IPs[i] + " index=" + std::to_string(i + 1) + " > NUL";
-            std::system(DNSSetterCommand.c_str());
+            issue = std::system(DNSSetterCommand.c_str()) == true || issue;
         }
+        return issue;
+    }
+
+    bool restartNetwork() override {
+        bool issue = system("netsh interface set interface \"Wi-Fi\" admin=disable > NUL");
+        system("netsh interface set interface \"Wi-Fi\" admin=enable > NUL") == true || issue;
+        return issue;
     }
 
     void clearTerminal() override {
         system("cls");
-    }
-	
-    void restartNetwork() override {
-        system("netsh interface set interface \"Wi-Fi\" admin=disable > NUL");
-        system("netsh interface set interface \"Wi-Fi\" admin=enable > NUL");
     }
 
     std::string getDNSServers() override {
@@ -62,23 +65,26 @@ public:
 
 class Linux : public OS {
 public:
-    void clearDNS() override {
-        system("nmcli con mod \"$(nmcli -t -f NAME c show --active | head -n1)\" ipv4.ignore-auto-dns yes");
-        system("nmcli con mod \"$(nmcli -t -f NAME c show --active | head -n1)\" ipv4.dns \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\"");
+    bool clearDNS() override {
+        bool issue = system("nmcli con mod \"$(nmcli -t -f NAME c show --active | head -n1)\" ipv4.ignore-auto-dns yes");
+        issue = system("nmcli con mod \"$(nmcli -t -f NAME c show --active | head -n1)\" ipv4.dns \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\"") || issue;
+        return issue;
     }
 
-    void setDNS(const DNSServer& DNSServer) override {
+    bool setDNS(const DNSServer& DNSServer) override {
         std::string connectionName = "$(nmcli -t -f NAME c show --active | head -n1)";
-        system(("nmcli con mod " + connectionName + " ipv4.dns \"" + DNSServer.IPs[0] + " " + DNSServer.IPs[1] + "\"").c_str());
-        system(("nmcli con mod " + connectionName + " ipv4.ignore-auto-dns yes").c_str());
+        bool issue = system(("nmcli con mod " + connectionName + " ipv4.dns \"" + DNSServer.IPs[0] + " " + DNSServer.IPs[1] + "\"").c_str());
+        issue = system(("nmcli con mod " + connectionName + " ipv4.ignore-auto-dns yes").c_str())|| issue;
+        return issue;
+    }
+
+    bool restartNetwork() override {
+        bool issue = system("systemctl restart NetworkManager");
+        return issue;
     }
 
     void clearTerminal() override {
         system("clear");
-    }
-
-    void restartNetwork() override {
-        system("systemctl restart NetworkManager");
     }
 
     std::string getDNSServers() override {
