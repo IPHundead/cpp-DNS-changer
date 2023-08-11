@@ -53,7 +53,7 @@ void ui::gotoxy(short x, short y) {
     GetConsoleCursorInfo(out, &cursorInfo);
     cursorInfo.bVisible = false;
     SetConsoleCursorInfo(out, &cursorInfo);
-    COORD c {x, y};
+    COORD c {(short)(x != 0 ? x - 1 : x), (short)(y != 0 ? y - 1 : y)};
     SetConsoleCursorPosition (GetStdHandle(STD_OUTPUT_HANDLE), c);
     #elif (defined (LINUX) || defined (__linux__))
     std::cout<<"\x1B["<<y<<";"<<x<<"H";
@@ -159,7 +159,7 @@ void ui::run() {
                 DNSServerSelected = DNSServerSelected > 0 ? DNSServerSelected - 1 : DNSServerSelected;
                 break;
             case DOWN_ARROW_KEY:
-                DNSServerSelected = DNSServerSelected < DNSServers.size() - 1 ? DNSServerSelected + 1 : DNSServerSelected;
+                DNSServerSelected = DNSServerSelected < (*DNSServers).size() - 1 ? DNSServerSelected + 1 : DNSServerSelected;
                 break;
         }
         #elif (defined (LINUX) || defined (__linux__))
