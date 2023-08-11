@@ -66,20 +66,20 @@ public:
 class Linux : public OS {
 public:
     bool clearDNS() override {
-        bool issue = system("nmcli con mod \"$(nmcli -t -f NAME c show --active | head -n1)\" ipv4.ignore-auto-dns yes");
-        issue = system("nmcli con mod \"$(nmcli -t -f NAME c show --active | head -n1)\" ipv4.dns \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\"") || issue;
+        bool issue = system("nmcli con mod \"$(nmcli -t -f NAME c show --active | head -n1)\" ipv4.ignore-auto-dns yes > /dev/null");
+        issue = system("nmcli con mod \"$(nmcli -t -f NAME c show --active | head -n1)\" ipv4.dns \"$(ip -o -4 route show to default | awk '{print $3}' | head -n 1)\" > /dev/null") || issue;
         return issue;
     }
 
     bool setDNS(const DNSServer& DNSServer) override {
-        std::string connectionName = "$(nmcli -t -f NAME c show --active | head -n1)";
-        bool issue = system(("nmcli con mod " + connectionName + " ipv4.dns \"" + DNSServer.IPs[0] + " " + DNSServer.IPs[1] + "\"").c_str());
-        issue = system(("nmcli con mod " + connectionName + " ipv4.ignore-auto-dns yes").c_str())|| issue;
+        std::string connectionName = "$(nmcli -t -f NAME c show --active | head -n1) > /dev/null";
+        bool issue = system(("nmcli con mod " + connectionName + " ipv4.dns \"" + DNSServer.IPs[0] + " " + DNSServer.IPs[1] + "\" > /dev/null").c_str());
+        issue = system(("nmcli con mod " + connectionName + " ipv4.ignore-auto-dns yes > /dev/null").c_str()) || issue;
         return issue;
     }
 
     bool restartNetwork() override {
-        bool issue = system("systemctl restart NetworkManager");
+        bool issue = system("sudo systemctl restart NetworkManager > /dev/null");
         return issue;
     }
 
