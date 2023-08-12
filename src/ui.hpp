@@ -1,4 +1,5 @@
 #include "dns_changer.hpp"
+#include <fstream>
 #if (defined (_WIN32) || defined (_WIN64))
 #include <windows.h>
 #include <conio.h>
@@ -26,14 +27,22 @@ private:
 
     void gotoxy(short x, short y);
     char getch_();
+
     void displayHelp();
+    void displayManual();
     void displayStatus(std::string message);
     void displayCurrentDNS();
     void displayDNSServersTableHeader();
     void displayDNSServersTableTail();
-    void displayDNSServersTable(const std::vector<DNSServer>& DNSServers);
+    void displayDNSServersTable();
+
+    bool changeDNSToDefault();
+    bool saveDefaultDNS(DNSServer* server);
+    bool isUserChoosingDefaultDNS = false;
+
     int findLargestDNSServerNameSize();
     int largestDNSServerNameSize;
+
     int DNSServerSelected = 0;
     std::vector<DNSServer>* DNSServers;
 
@@ -80,13 +89,22 @@ char ui::getch_() {
 void ui::displayHelp()
 {
     gotoxy(0, 0);
-    std::cout<<"(e)xit, (r)estart network, (f)lush DNS";
+    std::cout<<"(e)xit, (r)estart network, (f)lush DNS, (c)hange DNS to default, (s)et the default DNS, (m)anual.";
+}
+
+void ui::displayManual()
+{
+    os.clearTerminal();
+    // Complete this here
+    std::cout<<"To back to the main page, press any key...";
+    getch_();
+    os.clearTerminal();
 }
 
 void ui::displayStatus(std::string message)
 {
     gotoxy(0, 2);
-    std::cout<<"Status: ("<<message<<")                 ";
+    std::cout<<"Status: ("<<message<<")                                       ";
 }
 
 void ui::displayCurrentDNS()
@@ -124,19 +142,19 @@ void ui::displayDNSServersTableTail()
     std::cout<<std::endl;
 }
 
-void ui::displayDNSServersTable(const std::vector<DNSServer>& DNSServers) {
+void ui::displayDNSServersTable() {
     displayDNSServersTableHeader();
-    for (int i{0}; i<DNSServers.size(); i++)
+    for (int i{0}; i<(*DNSServers).size(); i++)
     {
-        std::cout<<(i == DNSServerSelected ? "| \033[0;32m> " : "|   ")<<DNSServers[i].name<<"\033[0m";
+        std::cout<<(i == DNSServerSelected ? "| \033[0;32m> " : "|   ")<<(*DNSServers)[i].name<<"\033[0m";
         gotoxy(largestDNSServerNameSize + 6, i + 8);
         std::cout<<(i == DNSServerSelected ? "|\033[0;32m " : "| ");
-        gotoxy(largestDNSServerNameSize + 8 + ((16 - DNSServers[i].IPs[0].size()) / 2), i + 8);
-        std::cout<<DNSServers[i].IPs[0]<<"\033[0m";
+        gotoxy(largestDNSServerNameSize + 8 + ((16 - (*DNSServers)[i].IPs[0].size()) / 2), i + 8);
+        std::cout<<(*DNSServers)[i].IPs[0]<<"\033[0m";
         gotoxy(largestDNSServerNameSize + 24, i + 8);
         std::cout<<(i == DNSServerSelected ? "|\033[0;32m " : "| ");
-        gotoxy(largestDNSServerNameSize + 26 + ((16 - DNSServers[i].IPs[1].size()) / 2), i + 8);
-        std::cout<<DNSServers[i].IPs[1]<<"\033[0m";
+        gotoxy(largestDNSServerNameSize + 26 + ((16 - (*DNSServers)[i].IPs[1].size()) / 2), i + 8);
+        std::cout<<(*DNSServers)[i].IPs[1]<<"\033[0m";
         gotoxy(largestDNSServerNameSize + 42, i + 8);
         std::cout<<"|"<<std::endl;
     }
@@ -149,9 +167,9 @@ void ui::run() {
     displayCurrentDNS();
     while (true) {
         displayHelp();
-        displayStatus(issue == true ? "Failed" : "Done");
+        displayStatus(issue == true ? "Failed" : isUserChoosingDefaultDNS ? "Choose your default DNS." : "Done");
         issue = false;
-        displayDNSServersTable(*DNSServers);
+        displayDNSServersTable();
 
         char ch = getch_();
         switch (ch) {
@@ -177,27 +195,56 @@ void ui::run() {
 		break;
 
         case 'r':
+            isUserChoosingDefaultDNS = false;
             displayStatus("Restarting network...");
             issue = os.restartNetwork();
             displayCurrentDNS();
             break;
 
         case 'f':
+            isUserChoosingDefaultDNS = false;
             displayStatus("Clearing DNS...");
             issue = os.clearDNS();
             displayCurrentDNS();
             break;
 
         case ENTER_KEY:
-            displayStatus("Setting DNS...");
-            issue = os.setDNS((*DNSServers)[DNSServerSelected]);
+            if (isUserChoosingDefaultDNS)
+            {
+                displayStatus("Saving default DNS...");
+                issue = saveDefaultDNS(&(*DNSServers)[DNSServerSelected]);
+            } else {
+                displayStatus("Setting DNS...");
+                issue = os.setDNS((*DNSServers)[DNSServerSelected]);
+            }
             displayCurrentDNS();
+            isUserChoosingDefaultDNS = false;
+            break;
+
+        case 'c':
+            isUserChoosingDefaultDNS = false;
+            displayStatus("Setting default DNS...");
+            issue = changeDNSToDefault();
+            displayCurrentDNS();
+            break;
+
+        case 's':
+            isUserChoosingDefaultDNS = true;
+            break;
+
+        case 'm':
+            displayManual();
+            displayHelp();
+            displayStatus("Done");
+            displayCurrentDNS();
+            displayDNSServersTable();
             break;
 
         case 'e':
             exit(0);
 
         default:
+            isUserChoosingDefaultDNS = false;
             break;
         }
     }
@@ -209,4 +256,40 @@ int ui::findLargestDNSServerNameSize()
     for (const auto& DNSServer : *DNSServers)
         largestDNSServerNameSize = std::max((int)DNSServer.name.size(), largestDNSServerNameSize);
     return largestDNSServerNameSize;
+}
+
+bool ui::changeDNSToDefault()
+{
+    std::ifstream file("default_DNS.txt");
+    bool issue = file.is_open() == false;
+
+    if (!issue)
+    {
+        DNSServer DefaultDNSServer;
+        std::string line;
+
+        while(std::getline(file, line))
+            if (DefaultDNSServer.IPs[0].empty())
+                DefaultDNSServer.IPs[0] = line;
+            else
+                DefaultDNSServer.IPs[1] = line;
+
+        issue = os.setDNS(DefaultDNSServer) || issue;
+        file.close();
+    }
+
+    return issue;
+}
+
+bool ui::saveDefaultDNS(DNSServer* server)
+{
+    std::ofstream defaultDNSFile ("default_DNS.txt");
+    bool issue = defaultDNSFile.is_open() == false;
+    if (!issue)
+    {
+        defaultDNSFile<<server->IPs[0]<<"\n";
+        defaultDNSFile<<server->IPs[1];
+        defaultDNSFile.close();
+    }
+    return issue;
 }
