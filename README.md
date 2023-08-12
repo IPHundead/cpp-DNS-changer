@@ -11,7 +11,9 @@
     right-click on dns_changer.exe --> 'Properties' --> 'Compatibility' tab --> 'Run this program as an administrator'
 
 ### How to give a file sudo privileges?
+
     Write the 'sudo' keyword before the './dns_changer' command
 
 ### DNS Changer preview
+
 ![DNS Changer Preview](https://github.com/IPHundead/cpp-DNS-changer/assets/92310427/7ff123f0-3a11-4497-bde8-57a1fa0b00a8)
