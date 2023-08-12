@@ -6,6 +6,7 @@
 struct DNSServer {
 	std::string name;
 	std::array<std::string, 2> IPs;
+    DNSServer() {}
     DNSServer(const std::string& name, const std::string& primaryIP, const std::string& secondaryIP)
         : name(name), IPs {primaryIP, secondaryIP} {}
 };
