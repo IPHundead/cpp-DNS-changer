@@ -29,11 +29,12 @@ private:
     char getch_();
 
     void displayHelp();
+    void displayManual();
     void displayStatus(std::string message);
     void displayCurrentDNS();
     void displayDNSServersTableHeader();
     void displayDNSServersTableTail();
-    void displayDNSServersTable(const std::vector<DNSServer>& DNSServers);
+    void displayDNSServersTable();
 
     bool changeDNSToDefault();
     bool saveDefaultDNS(DNSServer* server);
@@ -88,7 +89,16 @@ char ui::getch_() {
 void ui::displayHelp()
 {
     gotoxy(0, 0);
-    std::cout<<"(e)xit, (r)estart network, (f)lush DNS, (c)hange DNS to default, (s)et the default DNS.";
+    std::cout<<"(e)xit, (r)estart network, (f)lush DNS, (c)hange DNS to default, (s)et the default DNS, (m)anual.";
+}
+
+void ui::displayManual()
+{
+    os.clearTerminal();
+    // Complete this here
+    std::cout<<"To back to the main page, press any key...";
+    getch_();
+    os.clearTerminal();
 }
 
 void ui::displayStatus(std::string message)
@@ -132,19 +142,19 @@ void ui::displayDNSServersTableTail()
     std::cout<<std::endl;
 }
 
-void ui::displayDNSServersTable(const std::vector<DNSServer>& DNSServers) {
+void ui::displayDNSServersTable() {
     displayDNSServersTableHeader();
-    for (int i{0}; i<DNSServers.size(); i++)
+    for (int i{0}; i<(*DNSServers).size(); i++)
     {
-        std::cout<<(i == DNSServerSelected ? "| \033[0;32m> " : "|   ")<<DNSServers[i].name<<"\033[0m";
+        std::cout<<(i == DNSServerSelected ? "| \033[0;32m> " : "|   ")<<(*DNSServers)[i].name<<"\033[0m";
         gotoxy(largestDNSServerNameSize + 6, i + 8);
         std::cout<<(i == DNSServerSelected ? "|\033[0;32m " : "| ");
-        gotoxy(largestDNSServerNameSize + 8 + ((16 - DNSServers[i].IPs[0].size()) / 2), i + 8);
-        std::cout<<DNSServers[i].IPs[0]<<"\033[0m";
+        gotoxy(largestDNSServerNameSize + 8 + ((16 - (*DNSServers)[i].IPs[0].size()) / 2), i + 8);
+        std::cout<<(*DNSServers)[i].IPs[0]<<"\033[0m";
         gotoxy(largestDNSServerNameSize + 24, i + 8);
         std::cout<<(i == DNSServerSelected ? "|\033[0;32m " : "| ");
-        gotoxy(largestDNSServerNameSize + 26 + ((16 - DNSServers[i].IPs[1].size()) / 2), i + 8);
-        std::cout<<DNSServers[i].IPs[1]<<"\033[0m";
+        gotoxy(largestDNSServerNameSize + 26 + ((16 - (*DNSServers)[i].IPs[1].size()) / 2), i + 8);
+        std::cout<<(*DNSServers)[i].IPs[1]<<"\033[0m";
         gotoxy(largestDNSServerNameSize + 42, i + 8);
         std::cout<<"|"<<std::endl;
     }
@@ -159,7 +169,7 @@ void ui::run() {
         displayHelp();
         displayStatus(issue == true ? "Failed" : isUserChoosingDefaultDNS ? "Choose your default DNS." : "Done");
         issue = false;
-        displayDNSServersTable(*DNSServers);
+        displayDNSServersTable();
 
         char ch = getch_();
         switch (ch) {
@@ -220,6 +230,14 @@ void ui::run() {
 
         case 's':
             isUserChoosingDefaultDNS = true;
+            break;
+
+        case 'm':
+            displayManual();
+            displayHelp();
+            displayStatus("Done");
+            displayCurrentDNS();
+            displayDNSServersTable();
             break;
 
         case 'e':
